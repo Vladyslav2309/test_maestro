@@ -3,66 +3,56 @@
 namespace App\Observers;
 
 use App\Models\News;
-use Illuminate\Support\Facades\DB;
 
 class NewsObserver
 {
-
     public function saved(News $news): void
     {
-        $oldTags = DB::table('news_tag_histories')
-            ->where('news_id', $news->id)
-            ->pluck('tag_name')
-            ->toArray();
-
-        foreach (News::where('id', '!=', $news->id)->get() as $otherNews) {
-            $text = $otherNews->content;
-
-
-            foreach ($oldTags as $oldTag) {
-                $pattern = '/<a\b[^>]*>' . preg_quote($oldTag, '/') . '<\/a>/iu';
-                $text = preg_replace($pattern, $oldTag, $text);
-            }
-
-            foreach ($news->tags as $tag) {
-                $patternWord = '/(?<!\w)(' . preg_quote($tag->name, '/') . ')(?!\w)/iu';
-                $replacement = '<a href="' . url('/news/' . $news->slug) . '">' . $tag->name . '</a>';
-                $text = preg_replace($patternWord, $replacement, $text);
-            }
-
-            if ($text !== $otherNews->content) {
-                $otherNews->content = $text;
-                $otherNews->saveQuietly();
-            }
-        }
-
-        DB::table('news_tag_histories')->where('news_id', $news->id)->delete();
-        foreach ($news->tags as $tag) {
-            DB::table('news_tag_histories')->insert([
-                'news_id' => $news->id,
-                'tag_name' => $tag->name,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+        $this->updateAllLinks();
     }
-
 
     public function deleting(News $news): void
     {
-        foreach (News::where('id', '!=', $news->id)->get() as $otherNews) {
-            $text = $otherNews->content;
+        $this->updateAllLinks();
+    }
 
-            foreach ($news->tags as $tag) {
-                $pattern = '/<a\b[^>]*>' . preg_quote($tag->name, '/') . '<\/a>/iu';
-                $text = preg_replace($pattern, $tag->name, $text);
-            }
+    protected function updateAllLinks(): void
+    {
+        $allNews = News::with('tags')->get();
 
-            if ($text !== $otherNews->content) {
-                $otherNews->content = $text;
-                $otherNews->saveQuietly();
+
+        foreach ($allNews as $newsItem) {
+            $newsItem->content = preg_replace('/<a\b[^>]*>(.*?)<\/a>/iu', '$1', $newsItem->content);
+            $newsItem->saveQuietly();
+        }
+
+
+        $tagMap = [];
+        foreach ($allNews as $newsItem) {
+            foreach ($newsItem->tags as $tag) {
+                $tagMap[$tag->name][] = $newsItem;
             }
         }
-        DB::table('news_tag_histories')->where('news_id', $news->id)->delete();
+
+
+        foreach ($allNews as $newsItem) {
+            $text = $newsItem->content;
+
+            foreach ($tagMap as $tagName => $newsList) {
+                $text = preg_replace_callback(
+                    '/(?<!\w)(' . preg_quote($tagName, '/') . ')(?!\w)/iu',
+                    function ($matches) use ($newsList) {
+
+                        return '<a href="' . url('/news/' . $newsList[0]->slug) . '">' . $matches[1] . '</a>';
+                    },
+                    $text
+                );
+            }
+
+            if ($text !== $newsItem->content) {
+                $newsItem->content = $text;
+                $newsItem->saveQuietly();
+            }
+        }
     }
 }
