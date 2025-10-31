@@ -34,6 +34,7 @@
                 <span></span>
             @endif
 
+
             @if($next)
                 <a href="{{ route('news.show', ['slug' => $next->slug]) }}" class="hover:underline">
                     {{ $next->title }} &raquo;
