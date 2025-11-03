@@ -66,8 +66,11 @@ class NewsResource extends Resource
                             ->label('Тег')
                             ->required()
                             ->unique(table: Tag::class, column: 'name',  ignoreRecord: true,)
+                            ->rules(['regex:/^[^\s]+$/'])
                             ->validationMessages([
                                 'unique' => 'Данний тег вже існує в іншій новині.',
+                                'regex' => 'Тег повинен складатися лише з одного слова без пробілів.',
+
                             ])
                             ->maxLength(50),
                     ])
