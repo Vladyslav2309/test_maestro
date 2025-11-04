@@ -53,6 +53,7 @@ class News extends Model implements HasMedia
     {
         return $this->hasMany(Tag::class);
     }
+
     public function validateTags(array $tags): array
     {
         $duplicates = [];
@@ -66,4 +67,33 @@ class News extends Model implements HasMedia
         return $duplicates;
     }
 
+    public function getLinkedContentAttribute(): string
+    {
+        $content = $this->content;
+
+        $allNews = static::with('tags')->get();
+
+
+        $tagMap = [];
+        foreach ($allNews as $newsItem) {
+            foreach ($newsItem->tags as $tag) {
+                if (!isset($tagMap[$tag->name])) {
+                    $tagMap[$tag->name] = url('/news/' . $newsItem->slug);
+                }
+            }
+        }
+
+        $cleanContent = preg_replace('/<a\b[^>]*>(.*?)<\/a>/iu', '$1', $content);
+
+        foreach ($tagMap as $tagName => $link) {
+            $cleanContent = preg_replace_callback(
+                '/(?<!\w)(' . preg_quote($tagName, '/') . ')(?!\w)/iu',
+                fn($matches) => '<a href="' . $link . '">' . $matches[1] . '</a>',
+                $cleanContent
+            );
+        }
+
+        return $cleanContent;
+    }
 }
+

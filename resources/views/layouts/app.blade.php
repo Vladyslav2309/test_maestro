@@ -6,6 +6,23 @@
     <title>@yield('title', 'Новини')</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+
+
+    <style>
+        .prose a {
+            color: #1d4ed8;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .prose a:hover {
+            background: #e0f2fe;
+            color: #1e3a8a;
+        }
+    </style>
+
 </head>
 <body class="bg-gray-50 font-sans text-gray-900">
 
@@ -30,3 +47,4 @@
 
 </body>
 </html>
+

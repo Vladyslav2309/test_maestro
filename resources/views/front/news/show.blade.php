@@ -18,11 +18,7 @@
         @endif
 
         <div class="prose max-w-none mb-6">
-            {!! str_replace(
-                '<a ',
-                '<a class="text-blue-600 underline hover:text-blue-800 hover:decoration-wavy hover:decoration-blue-400" ',
-                $news->content
-            ) !!}
+            {!! $news->linked_content !!}
         </div>
 
         <div class="flex justify-between mt-8 text-blue-700 font-medium">
