@@ -11,7 +11,7 @@ class NewsObserver
         $this->updateAllLinks();
     }
 
-    public function deleting(News $news): void
+    public function deleted(News $news): void
     {
         $this->updateAllLinks();
     }
@@ -20,38 +20,35 @@ class NewsObserver
     {
         $allNews = News::with('tags')->get();
 
-
-        foreach ($allNews as $newsItem) {
-            $newsItem->content = preg_replace('/<a\b[^>]*>(.*?)<\/a>/iu', '$1', $newsItem->content);
-            $newsItem->saveQuietly();
-        }
-
-
         $tagMap = [];
         foreach ($allNews as $newsItem) {
             foreach ($newsItem->tags as $tag) {
-                $tagMap[$tag->name][] = $newsItem;
+
+                if (!isset($tagMap[$tag->name])) {
+                    $tagMap[$tag->name] = url('/news/' . $newsItem->slug);
+                }
             }
         }
 
 
         foreach ($allNews as $newsItem) {
-            $text = $newsItem->content;
+            $originalContent = $newsItem->content;
 
-            foreach ($tagMap as $tagName => $newsList) {
-                $text = preg_replace_callback(
+            $cleanContent = preg_replace('/<a\b[^>]*>(.*?)<\/a>/iu', '$1', $originalContent);
+
+
+            foreach ($tagMap as $tagName => $link) {
+
+                $cleanContent = preg_replace_callback(
                     '/(?<!\w)(' . preg_quote($tagName, '/') . ')(?!\w)/iu',
-                    function ($matches) use ($newsList) {
-
-                        return '<a href="' . url('/news/' . $newsList[0]->slug) . '">' . $matches[1] . '</a>';
-                    },
-                    $text
+                    fn($matches) => '<a href="' . $link . '">' . $matches[1] . '</a>',
+                    $cleanContent
                 );
             }
 
-            if ($text !== $newsItem->content) {
-                $newsItem->content = $text;
-                $newsItem->saveQuietly();
+
+            if ($cleanContent !== $originalContent) {
+                $newsItem->updateQuietly(['content' => $cleanContent]);
             }
         }
     }
