@@ -21,7 +21,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 use Rawilk\FilamentPasswordInput\Password;
-
+use App\Rules\TagUniqueWithLink;
+use Filament\Notifications\Notification;
+use Filament\Notifications\Actions\Action;
 class NewsResource extends Resource
 {
     protected static ?string $model = News::class;
@@ -60,17 +62,41 @@ class NewsResource extends Resource
 
                 Repeater::make('tags')
                     ->label('Теги')
-                ->relationship('tags')
+                    ->relationship('tags')
                     ->schema([
                         TextInput::make('name')
                             ->label('Тег')
                             ->required()
-                            ->unique(table: Tag::class, column: 'name',  ignoreRecord: true,)
                             ->rules(['regex:/^[^\s]+$/'])
-                            ->validationMessages([
-                                'unique' => 'Данний тег вже існує в іншій новині.',
-                                'regex' => 'Тег повинен складатися лише з одного слова без пробілів.',
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (! $state) return;
 
+                                $existingTag = Tag::where('name', $state)->first();
+
+                                if ($existingTag && $existingTag->news) {
+                                    $newsLink = route('filament.admin.resources.news.edit', $existingTag->news);
+
+
+                                    $set('name', null);
+
+
+                                    Notification::make()
+                                        ->title('Такий тег вже існує')
+                                        ->body('Він вже доданий до іншої новини.')
+                                        ->danger()
+                                        ->actions([
+                                            \Filament\Notifications\Actions\Action::make('Перейти')
+                                                ->button()
+                                                ->url($newsLink)
+                                                ->openUrlInNewTab(),
+                                        ])
+                                        ->persistent()
+                                        ->send();
+                                }
+                            })
+                            ->validationMessages([
+                                'regex' => 'Тег повинен складатися лише з одного слова без пробілів.',
                             ])
                             ->maxLength(50),
                     ])
